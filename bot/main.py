@@ -14,7 +14,7 @@ import sys
 from datetime import datetime, timezone
 
 from .data import DataError, fetch_klines
-from .notifier import NotifyError, send_email
+from .notifier import NotifyError, send_email, send_telegram, telegram_configured
 from .regime import detect_regime
 from .state import get_stance, load_state, save_state, set_stance
 from .strategy import FLAT, decide
@@ -27,6 +27,25 @@ DISCLAIMER = (
     "Automated technical signal for information only — not financial advice. "
     "Crypto is highly volatile; never risk money you cannot afford to lose."
 )
+
+
+def dispatch(subject: str, body: str) -> bool:
+    """Send to every configured channel; True if at least one delivered."""
+    delivered = False
+    try:
+        send_email(subject, body)
+        print(f"Email sent: {subject}")
+        delivered = True
+    except NotifyError as err:
+        print(f"[ERROR] email: {err}", file=sys.stderr)
+    if telegram_configured():
+        try:
+            send_telegram(f"{subject}\n\n{body}")
+            print("Telegram alert sent.")
+            delivered = True
+        except NotifyError as err:
+            print(f"[ERROR] telegram: {err}", file=sys.stderr)
+    return delivered
 
 
 def transition_headline(symbol: str, prev: str, new: str, price: float) -> str:
@@ -93,21 +112,13 @@ def run(dry_run: bool = False, force_email: bool = False) -> int:
         if len(changes) > 1:
             subject += f" (+{len(changes) - 1} more)"
         body = report + "\n\n" + DISCLAIMER
-        try:
-            send_email(subject, body)
-            print(f"\nEmail sent: {subject}")
-        except NotifyError as err:
-            print(f"[ERROR] {err}", file=sys.stderr)
+        if not dispatch(subject, body):
             return 1
     elif force_email:
-        try:
-            send_email(f"📊 Trade Bot Status — {now}", report + "\n\n" + DISCLAIMER)
-            print("\nStatus email sent (forced).")
-        except NotifyError as err:
-            print(f"[ERROR] {err}", file=sys.stderr)
+        if not dispatch(f"📊 Trade Bot Status — {now}", report + "\n\n" + DISCLAIMER):
             return 1
     else:
-        print("\nNo signal change — no email.")
+        print("\nNo signal change — no notification.")
 
     # Fail the run only if we couldn't evaluate any symbol at all.
     return 0 if blocks else 1

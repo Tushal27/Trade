@@ -52,6 +52,33 @@ address. By default the bot emails your own Gmail.
    current market read for BTC and ETH. If the run fails, open it — the log
    will say exactly what's wrong (usually a mistyped app password).
 
+### Optional — Instant Telegram alerts on your phone (free)
+
+Email is the reliable record; Telegram adds an instant push notification.
+Both channels get every signal once this is set up.
+
+1. Open Telegram and search for **@BotFather** (the official one, blue
+   checkmark). Send it `/newbot`, pick any name (e.g. `My Trade Alerts`) and
+   any username ending in `bot` (e.g. `tushal_trade_alerts_bot`).
+2. BotFather replies with a **token** like `123456789:AAH9x...` — copy it.
+3. **Press Start on your new bot** (open the link BotFather gives you and tap
+   START). This step is required — bots can't message you first.
+4. Get your **chat id**: search for **@userinfobot**, press Start, and it
+   replies with your numeric id (e.g. `1234567890`).
+5. Add two more repository secrets (Settings → Secrets and variables →
+   Actions):
+
+| Secret name | Value |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | the token from BotFather |
+| `TELEGRAM_CHAT_ID` | your numeric id from @userinfobot |
+
+6. Test again via Actions → Trade Signal Bot → Run workflow (tick the status
+   email box) — you should now get both the email **and** a Telegram message.
+
+If the Telegram secrets aren't set, the bot simply skips Telegram — email
+keeps working as before.
+
 ### Step 4 — Turn on the automatic schedule
 
 GitHub only runs scheduled jobs from the **main** branch. Once you're happy,

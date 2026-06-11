@@ -12,6 +12,7 @@ import time
 import unittest
 
 from bot.data import Candles
+from bot.notifier import telegram_configured
 from bot.regime import RANGE, TREND_DOWN, TREND_UP, detect_regime
 from bot.state import get_stance, set_stance
 from bot.strategy import FLAT, LONG, SHORT, decide
@@ -106,6 +107,18 @@ class StrategyTests(unittest.TestCase):
         ltf = make_candles(ranging_series(n=300, amp=0.01, seed=3), interval="1h")
         d = decide("TESTUSDT", regime, ltf, prev_stance=FLAT)
         self.assertEqual(d.stance, FLAT)
+
+
+class NotifierTests(unittest.TestCase):
+    def test_telegram_skipped_when_unconfigured(self):
+        import os
+        saved = {k: os.environ.pop(k, None) for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")}
+        try:
+            self.assertFalse(telegram_configured())
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
 
 
 class StateTests(unittest.TestCase):
