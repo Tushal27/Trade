@@ -41,7 +41,8 @@ class Decision:
     confidence: float = 0.0
 
 
-def decide(symbol: str, regime: Regime, ltf: Candles, prev_stance: str) -> Decision:
+def decide(symbol: str, regime: Regime, ltf: Candles, prev_stance: str,
+           entry_vetoes: list[str] | None = None) -> Decision:
     closes = ltf.closes
     price = closes[-1]
     ema20 = ema_series(closes, 20)[-1]
@@ -110,6 +111,13 @@ def decide(symbol: str, regime: Regime, ltf: Candles, prev_stance: str) -> Decis
             _attach_plan(d, price, cur_atr, SHORT, target_override=mid)
         else:
             d.reasons.append("Range regime, price mid-range — no edge, staying flat.")
+
+    # Vetoes block fresh entries only — exits above have already returned.
+    if d.stance != FLAT and entry_vetoes:
+        d.reasons.append(f"Entry setup found ({d.stance}) but BLOCKED:")
+        d.reasons.extend(entry_vetoes)
+        d.stance = FLAT
+        d.stop = d.target = None
 
     return d
 
