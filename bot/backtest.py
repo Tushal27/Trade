@@ -27,7 +27,7 @@ import urllib.request
 from .data import Candles, DataError, _parse_and_validate  # reuse validation
 from .data import HOSTS
 from .regime import TREND_DOWN, TREND_UP, detect_regime
-from .strategy import FLAT, LONG, SHORT, decide
+from .strategy import BASELINE, CANDIDATE, FLAT, LONG, SHORT, Params, decide
 from .tracker import r_multiple
 
 FEE_ROUND_TRIP = 0.0016   # taker fees + slippage, as a fraction of price
@@ -72,11 +72,13 @@ def slice_candles(c: Candles, end_idx: int, lookback: int) -> Candles:
                    c.highs[lo:hi], c.lows[lo:hi], c.closes[lo:hi], c.volumes[lo:hi])
 
 
-def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None) -> dict:
+def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
+             params: Params | None = None) -> dict:
     """Walk the 1h series bar by bar; returns stats + trade list.
 
     btc_htf enables the BTC-trend veto for alt symbols (pass None for BTC).
     """
+    params = params or BASELINE
     # Precompute the regime after each closed 4h bar (and BTC's trend for the veto).
     regimes, regime_times = [], []
     for j in range(WARMUP_4H, len(htf)):
@@ -90,7 +92,9 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None) -> dict
 
     trades: list[dict] = []
     stance = FLAT
-    entry = stop = target = 0.0
+    entry = stop = 0.0
+    target: float | None = 0.0
+    tag = "trend"
     cooldown_left = 0
 
     for i in range(WARMUP_1H, len(ltf)):
@@ -107,17 +111,16 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None) -> dict
             hit = None
             if stance == LONG and low <= stop:
                 hit = ("STOP_HIT", stop)
-            elif stance == LONG and high >= target:
+            elif stance == LONG and target is not None and high >= target:
                 hit = ("TARGET_HIT", target)
             elif stance == SHORT and high >= stop:
                 hit = ("STOP_HIT", stop)
-            elif stance == SHORT and low <= target:
+            elif stance == SHORT and target is not None and low <= target:
                 hit = ("TARGET_HIT", target)
             if hit:
                 outcome, exit_price = hit
-                trades.append(_record(stance, entry, stop, exit_price, outcome))
-                if outcome == "STOP_HIT":
-                    cooldown_left = COOLDOWN_BARS
+                trades.append(_record(stance, entry, stop, exit_price, outcome, tag))
+                cooldown_left = _cooldown_for(params, outcome)
                 stance = FLAT
 
         if cooldown_left > 0:
@@ -126,7 +129,7 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None) -> dict
         else:
             veto = []
         window = slice_candles(ltf, i, WARMUP_1H)
-        d = decide(ltf.symbol, regime, window, stance, entry_vetoes=veto or None)
+        d = decide(ltf.symbol, regime, window, stance, entry_vetoes=veto or None, params=params)
 
         # BTC-trend veto, applied after decide() so only the side that fights
         # BTC's trend is blocked (matches the live filter's behavior).
@@ -139,20 +142,30 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None) -> dict
 
         if stance in (LONG, SHORT) and d.stance != stance:
             # Signal exit (trend break / mean reached) at the bar close.
-            trades.append(_record(stance, entry, stop, close, "SIGNAL_EXIT"))
+            trades.append(_record(stance, entry, stop, close, "SIGNAL_EXIT", tag))
+            cooldown_left = _cooldown_for(params, "SIGNAL_EXIT")
             stance = FLAT
         if stance == FLAT and d.stance in (LONG, SHORT) and d.stop is not None:
             stance, entry, stop, target = d.stance, close, d.stop, d.target
+            tag = "trend" if regime.trend in (TREND_UP, TREND_DOWN) else "range"
 
     return _stats(ltf.symbol, trades)
 
 
-def _record(side: str, entry: float, stop: float, exit_price: float, outcome: str) -> dict:
+def _cooldown_for(params: Params, outcome: str) -> int:
+    """Baseline: cooldown after stop-outs only (matches the original live
+    behavior). Candidate: cool down after every close to kill re-entry churn."""
+    if outcome == "STOP_HIT":
+        return COOLDOWN_BARS * 2 if params.trail else COOLDOWN_BARS
+    return COOLDOWN_BARS if params.trail else 0
+
+
+def _record(side: str, entry: float, stop: float, exit_price: float, outcome: str, tag: str) -> dict:
     r = r_multiple(side, entry, stop, exit_price)
     risk = abs(entry - stop)
     fee_r = (FEE_ROUND_TRIP * entry / risk) if risk > 0 else 0.0
     return {"side": side, "entry": entry, "stop": stop, "exit": exit_price,
-            "outcome": outcome, "r": round(r - fee_r, 3)}
+            "outcome": outcome, "tag": tag, "r": round(r - fee_r, 3)}
 
 
 def _stats(symbol: str, trades: list[dict]) -> dict:
@@ -164,6 +177,12 @@ def _stats(symbol: str, trades: list[dict]) -> dict:
         cumulative += r
         peak = max(peak, cumulative)
         max_dd = min(max_dd, cumulative - peak)
+    def bucket(tag: str) -> str:
+        sub = [t["r"] for t in trades if t["tag"] == tag]
+        if not sub:
+            return "no trades"
+        return f"{len(sub)} trades, {sum(sub):+.1f}R"
+
     return {
         "symbol": symbol,
         "trades": len(rs),
@@ -174,33 +193,43 @@ def _stats(symbol: str, trades: list[dict]) -> dict:
         "total_r": round(sum(rs), 2),
         "profit_factor": round(sum(wins) / abs(sum(losses)), 2) if losses and sum(losses) != 0 else float("inf") if wins else 0.0,
         "max_drawdown_r": round(max_dd, 2),
+        "trend_bucket": bucket("trend"),
+        "range_bucket": bucket("range"),
         "trade_list": trades,
     }
 
 
-def format_report(results: list[dict], days: int) -> str:
+def format_report(sections: list[tuple[str, list[dict]]], days: int) -> str:
     lines = [f"Backtest report — last {days} days, fees 0.16%/trade, conservative fills", ""]
-    for s in results:
-        lines += [
-            f"{s['symbol']}:",
-            f"  Trades:        {s['trades']}  ({s['wins']} wins / {s['losses']} losses)",
-            f"  Win rate:      {s['win_rate']:.0%}",
-            f"  Avg R/trade:   {s['avg_r']:+.2f}",
-            f"  Total R:       {s['total_r']:+.2f}   (at 1% risk per trade ≈ {s['total_r']:+.1f}% on capital)",
-            f"  Profit factor: {s['profit_factor']}",
-            f"  Max drawdown:  {s['max_drawdown_r']:.2f}R",
-            "",
-        ]
+    for label, results in sections:
+        lines.append(f"=== {label} ===")
+        for s in results:
+            lines += [
+                f"{s['symbol']}:",
+                f"  Trades:        {s['trades']}  ({s['wins']} wins / {s['losses']} losses)",
+                f"  Win rate:      {s['win_rate']:.0%}",
+                f"  Avg R/trade:   {s['avg_r']:+.2f}",
+                f"  Total R:       {s['total_r']:+.2f}   (at 1% risk per trade ≈ {s['total_r']:+.1f}% on capital)",
+                f"  Profit factor: {s['profit_factor']}",
+                f"  Max drawdown:  {s['max_drawdown_r']:.2f}R",
+                f"  Trend trades:  {s['trend_bucket']}",
+                f"  Range trades:  {s['range_bucket']}",
+                "",
+            ]
     lines.append("Reading guide: win rates of 35-50% are NORMAL for this strategy class —")
     lines.append("profitability comes from winners being bigger than losers (avg R > 0).")
     lines.append("Past performance does not guarantee future results.")
     return "\n".join(lines)
 
 
+VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Walk-forward backtest of the live signal code")
     parser.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT"])
     parser.add_argument("--days", type=int, default=365)
+    parser.add_argument("--variant", choices=["baseline", "candidate", "compare"], default="compare")
     parser.add_argument("--email", action="store_true", help="also send the report via configured channels")
     args = parser.parse_args()
 
@@ -209,24 +238,34 @@ def main() -> int:
     start_1h = end_ms - (args.days * 24 + WARMUP_1H) * 3_600_000
     start_4h = end_ms - (args.days * 6 + WARMUP_4H + 40) * 14_400_000
 
+    # Fetch once, simulate every requested variant on the same data.
+    data: dict[str, tuple[Candles, Candles]] = {}
     btc_htf = None
-    results = []
     for symbol in args.symbols:
         print(f"Fetching {symbol} history…")
         htf = fetch_klines_range(symbol, "4h", start_4h, end_ms)
         ltf = fetch_klines_range(symbol, "1h", start_1h, end_ms)
+        data[symbol] = (htf, ltf)
         if symbol == "BTCUSDT":
             btc_htf = htf
-        use_btc = btc_htf if symbol != "BTCUSDT" else None
-        print(f"Simulating {symbol} ({len(ltf)} hourly bars)…")
-        results.append(simulate(htf, ltf, use_btc))
 
-    report = format_report(results, args.days)
+    chosen = VARIANTS if args.variant == "compare" else {args.variant: VARIANTS[args.variant]}
+    sections = []
+    for label, params in chosen.items():
+        results = []
+        for symbol in args.symbols:
+            htf, ltf = data[symbol]
+            use_btc = btc_htf if symbol != "BTCUSDT" else None
+            print(f"Simulating {symbol} [{label}]…")
+            results.append(simulate(htf, ltf, use_btc, params=params))
+        sections.append((label.upper(), results))
+
+    report = format_report(sections, args.days)
     print("\n" + report)
 
     if args.email:
         from .main import dispatch
-        dispatch(f"🧪 Backtest Report — {args.days} days", report)
+        dispatch(f"🧪 Backtest Report — {args.days} days ({args.variant})", report)
     return 0
 
 

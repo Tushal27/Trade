@@ -9,7 +9,7 @@ import unittest
 
 from bot.backtest import simulate
 from bot.filters import btc_trend_veto, funding_veto
-from bot.strategy import FLAT, LONG, SHORT, decide
+from bot.strategy import CANDIDATE, FLAT, LONG, SHORT, decide
 from bot.tracker import (OUTCOME_STOP, OUTCOME_TARGET, check_hit, r_multiple)
 from tests.test_strategy import (make_candles, mirrored, ranging_series,
                                  trending_series)
@@ -92,6 +92,27 @@ class BacktestTests(unittest.TestCase):
         ltf = make_candles(ranging_series(n=600, amp=0.03, seed=4), interval="1h")
         stats = simulate(htf, ltf)
         self.assertIsInstance(stats["total_r"], float)
+
+    def test_simulate_candidate_params(self):
+        htf = make_candles(trending_series(n=400, drift=0.004))
+        ltf = make_candles(trending_series(n=600, drift=0.001, seed=5), interval="1h")
+        stats = simulate(htf, ltf, params=CANDIDATE)
+        self.assertEqual(stats["trades"], stats["wins"] + stats["losses"])
+
+
+class CandidateParamsTests(unittest.TestCase):
+    def test_trailing_trend_entry_has_no_fixed_target(self):
+        regime = detect_regime(make_candles(trending_series(drift=0.004)))
+        ltf = make_candles(trending_series(n=300, drift=0.003, seed=11), interval="1h")
+        d = decide("T", regime, ltf, FLAT, params=CANDIDATE)
+        if d.stance == LONG:  # entry fires only if RSI is in the pullback zone
+            self.assertIsNone(d.target)
+            self.assertIsNotNone(d.stop)
+
+    def test_trailing_position_check_hit_ignores_target(self):
+        ltf = make_candles([100, 102, 105, 112, 111], interval="1h", spread=0.001)
+        hit = check_hit("LONG", ltf.open_times[0], stop=95.0, target=None, ltf=ltf)
+        self.assertIsNone(hit)  # never stopped, no target to hit
 
 
 if __name__ == "__main__":

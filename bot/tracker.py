@@ -53,9 +53,10 @@ def r_multiple(side: str, entry: float, stop: float, exit_price: float) -> float
     return pnl / risk
 
 
-def check_hit(side: str, entry_ms: int, stop: float, target: float, ltf: Candles) -> tuple[str, float] | None:
+def check_hit(side: str, entry_ms: int, stop: float, target: float | None, ltf: Candles) -> tuple[str, float] | None:
     """Scan closed bars after entry for a stop/target touch.
 
+    `target` may be None (trailing trades exit via strategy signal instead).
     Returns (outcome, exit_price) or None if the trade is still open.
     """
     for i, t in enumerate(ltf.open_times):
@@ -65,12 +66,12 @@ def check_hit(side: str, entry_ms: int, stop: float, target: float, ltf: Candles
         if side == "LONG":
             if low <= stop:
                 return OUTCOME_STOP, stop
-            if high >= target:
+            if target is not None and high >= target:
                 return OUTCOME_TARGET, target
         else:
             if high >= stop:
                 return OUTCOME_STOP, stop
-            if low <= target:
+            if target is not None and low <= target:
                 return OUTCOME_TARGET, target
     return None
 

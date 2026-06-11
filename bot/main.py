@@ -19,11 +19,12 @@ from .filters import btc_trend_veto, fetch_funding_rate, funding_veto
 from .notifier import NotifyError, send_email, send_telegram, telegram_configured
 from .regime import detect_regime
 from .state import get_stance, load_state, save_state, set_stance
-from .strategy import FLAT, LONG, SHORT, decide
-from .tracker import (OUTCOME_STOP, check_hit, close_trade, cooldown_until_iso,
-                      in_cooldown)
+from .strategy import BASELINE, FLAT, LONG, SHORT, decide
+from .tracker import (OUTCOME_SIGNAL_EXIT, OUTCOME_STOP, check_hit, close_trade,
+                      cooldown_until_iso, in_cooldown)
 
 SYMBOLS = ["BTCUSDT", "ETHUSDT"]  # BTCUSDT must stay first: its regime gates alt entries
+LIVE_PARAMS = BASELINE  # promote strategy.CANDIDATE only after the backtest proves it
 HTF_INTERVAL = "4h"   # regime timeframe
 LTF_INTERVAL = "1h"   # signal timeframe
 
@@ -66,10 +67,13 @@ def format_decision_block(d, prev_stance: str) -> str:
         f"  Price:   {d.price:,.2f}",
         f"  Regime:  {d.regime_label} (confidence {d.confidence:.0%})",
     ]
-    if d.stop is not None and d.target is not None:
-        rr = abs(d.target - d.price) / abs(d.price - d.stop) if d.price != d.stop else 0
+    if d.stop is not None:
         lines.append(f"  Stop:    {d.stop:,.2f}")
-        lines.append(f"  Target:  {d.target:,.2f}  (~{rr:.1f}R)")
+        if d.target is not None:
+            rr = abs(d.target - d.price) / abs(d.price - d.stop) if d.price != d.stop else 0
+            lines.append(f"  Target:  {d.target:,.2f}  (~{rr:.1f}R)")
+        else:
+            lines.append("  Target:  none — ride the trend; an EXIT alert will come when it breaks")
     for reason in d.reasons:
         lines.append(f"  Why:     {reason}")
     return "\n".join(lines)
@@ -107,7 +111,8 @@ def run(dry_run: bool = False, force_email: bool = False) -> int:
 
         # 1) Manage an open trade: did price touch the stop or target?
         if prev in (LONG, SHORT) and pos.get("entry") is not None and pos.get("entry_ms") is not None:
-            hit = check_hit(prev, int(pos["entry_ms"]), float(pos["stop"]), float(pos["target"]), ltf)
+            target = float(pos["target"]) if pos.get("target") is not None else None
+            hit = check_hit(prev, int(pos["entry_ms"]), float(pos["stop"]), target, ltf)
             if hit:
                 outcome, exit_price = hit
                 if not dry_run:
@@ -143,7 +148,15 @@ def run(dry_run: bool = False, force_email: bool = False) -> int:
                 if v and v not in vetoes:
                     vetoes.append(v)
 
-        d = decide(symbol, regime, ltf, prev, entry_vetoes=vetoes)
+        d = decide(symbol, regime, ltf, prev, entry_vetoes=vetoes, params=LIVE_PARAMS)
+
+        # A strategy exit (trend break / mean reached) also closes the ledger trade.
+        if prev in (LONG, SHORT) and d.stance != prev and pos.get("entry") is not None:
+            if not dry_run:
+                record = close_trade(symbol, pos, OUTCOME_SIGNAL_EXIT, d.price)
+                closes.append(record)
+                blocks.append(format_close_block(record))
+
         blocks.append(format_decision_block(d, prev))
 
         if d.stance != prev:
