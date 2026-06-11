@@ -89,17 +89,23 @@ key risks around this exact setup, and a discipline reminder.
 veto, or create a trade decision. The backtested rules keep full authority
 (see ARCHITECTURE.md for why).
 
-1. Create an account at <https://platform.claude.com> and add a small amount
-   of credit (even $5 lasts a very long time).
-2. Create an **API key** (Settings → API keys) — it starts with `sk-ant-`.
-3. Add it as a repository secret named `ANTHROPIC_API_KEY` (same place as
-   your Gmail secrets).
-4. Done — the next alert will include a "🧠 Brain's read" section.
+Two providers — pick **one** (the bot uses whichever key it finds):
 
-**Cost honesty:** each commentary costs roughly $0.01 with the default
-`claude-opus-4-8` model, and you only pay when an alert actually fires — for
-this bot that's typically well under $1/month. No key = no Brain = bot works
-exactly as before.
+**Option A — Google Gemini (free, recommended to start):**
+1. Go to <https://aistudio.google.com> → sign in with your Google account →
+   **Get API key** → **Create API key**. No card needed; the free tier is
+   far more than this bot will ever use.
+2. Add it as a repository secret named `GEMINI_API_KEY`.
+
+**Option B — Claude by Anthropic (premium quality, ~$0.01 per alert):**
+1. Create an account at <https://platform.claude.com>, add a small credit
+   (even $5 lasts a very long time), and create an API key (`sk-ant-...`).
+2. Add it as a repository secret named `ANTHROPIC_API_KEY`.
+
+Done — the next alert will include a "🧠 Brain's read" section. If both keys
+are set, Claude is used. No key = no Brain = bot works exactly as before.
+(Note: on Gemini's free tier, Google may use the prompts to improve their
+products — your prompts contain only public market data, nothing personal.)
 
 ### Step 4 — Turn on the automatic schedule
 
