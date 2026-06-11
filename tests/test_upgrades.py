@@ -53,13 +53,14 @@ class BrainTests(unittest.TestCase):
     def test_brain_silent_when_unconfigured(self):
         import os
         from bot.brain import brain_configured, commentary
-        saved = os.environ.pop("ANTHROPIC_API_KEY", None)
+        saved = {k: os.environ.pop(k, None) for k in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY")}
         try:
             self.assertFalse(brain_configured())
             self.assertIsNone(commentary("dummy report"))
         finally:
-            if saved is not None:
-                os.environ["ANTHROPIC_API_KEY"] = saved
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
 
 
 class FilterTests(unittest.TestCase):
