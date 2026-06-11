@@ -1,0 +1,68 @@
+name: Trade Signal Bot
+
+on:
+  schedule:
+    # Every 15 minutes. NOTE: GitHub only runs scheduled workflows from the
+    # DEFAULT branch (main) — merge this branch to main to activate the cron.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_email:
+        description: "Send a status email even if no signal changed (use to test Gmail setup)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trade-bot
+  cancel-in-progress: false
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The bot is pure standard library — no pip install needed.
+      - name: Run signal bot
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          FORCE_EMAIL: ${{ inputs.force_email }}
+        run: python -m bot.main
+
+      - name: Persist signal state
+        run: |
+          if git diff --quiet -- state/last_signals.json; then
+            echo "No state change."
+            exit 0
+          fi
+          git config user.name "trade-signal-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/last_signals.json
+          git commit -m "chore: update signal state [skip ci]"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push origin HEAD:"${{ github.ref_name }}"
+
+  tests:
+    # Runs only on manual dispatch so the 15-min cron stays fast.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
