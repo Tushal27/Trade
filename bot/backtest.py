@@ -27,7 +27,7 @@ import urllib.request
 from .data import Candles, DataError, _parse_and_validate  # reuse validation
 from .data import HOSTS
 from .regime import TREND_DOWN, TREND_UP, detect_regime
-from .strategy import BASELINE, CANDIDATE, FLAT, LONG, SHORT, Params, decide
+from .strategy import BASELINE, CANDIDATE, FLAT, LONG, SHORT, TREND_ONLY, Params, decide
 from .tracker import r_multiple
 
 FEE_ROUND_TRIP = 0.0016   # taker fees + slippage, as a fraction of price
@@ -222,14 +222,14 @@ def format_report(sections: list[tuple[str, list[dict]]], days: int) -> str:
     return "\n".join(lines)
 
 
-VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE}
+VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE, "trend_only": TREND_ONLY}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Walk-forward backtest of the live signal code")
     parser.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT"])
     parser.add_argument("--days", type=int, default=365)
-    parser.add_argument("--variant", choices=["baseline", "candidate", "compare"], default="compare")
+    parser.add_argument("--variant", choices=[*VARIANTS, "compare"], default="compare")
     parser.add_argument("--email", action="store_true", help="also send the report via configured channels")
     args = parser.parse_args()
 
