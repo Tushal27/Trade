@@ -106,6 +106,31 @@ BTCUSDT  —  FLAT -> LONG
 signal. The distance between entry and stop tells you your position size —
 never the other way around.
 
+## Beyond entry signals
+
+**Trade tracking.** When a signal opens, the bot remembers its stop and
+target and watches every run. You get a 🎯 **TARGET HIT** or 🛑 **STOP HIT**
+alert with the result in R (e.g. `+1.50R`), and the outcome is recorded in
+`state/ledger.json`. After a stop-out the symbol gets a 6-hour cooldown — no
+revenge re-entries.
+
+**Weekly scorecard.** Every Monday you get a 📈 email/Telegram summary of the
+week and all-time: closed trades, real win rate, total R. After a month you
+will *know* your actual success rate — no guessing.
+
+**Entry filters (quality control).** Two vetoes block statistically weak
+entries (they never block exits):
+- *Funding veto* — when perp funding is extreme, the trade is crowded and
+  fragile; the bot refuses to join the crowd.
+- *BTC veto* — ETH longs are blocked while BTC is in a 4h downtrend (and
+  ETH shorts while BTC trends up). Alts follow BTC.
+
+**Backtesting.** Actions tab → **Backtest** → Run workflow (choose how many
+days). It replays history through the *exact same live signal code* —
+conservative fills, 0.16% fees per trade — and emails you the report: win
+rate, average R, total R, max drawdown. Run it before trusting the bot with
+real risk sizes.
+
 ## How it decides (short version)
 
 1. **Regime first (4h chart):** is the market trending up, trending down, or

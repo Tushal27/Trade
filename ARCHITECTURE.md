@@ -110,6 +110,29 @@ Failure modes handled:
 | Duplicate notifications across runs | `state/last_signals.json` committed back to the repo by the workflow — state survives stateless CI runs |
 | Synthetic data for testing | `tests/test_strategy.py` generates trending (with realistic pullbacks), mirrored-downtrend, and ranging series — regime and strategy logic are verified offline, no live feed needed |
 
+## Layer 5 — Evidence & Feedback Loop
+
+Added after the initial release; closes the loop between signals and truth.
+
+- **Backtest engine (`bot/backtest.py`):** walk-forward replay of history
+  through the *live* `detect_regime()`/`decide()` functions — there is no
+  separate backtest strategy that could diverge from production. Conservative
+  by construction: entries at signal-bar close, stop wins ties with the
+  target inside a bar, 0.16% round-trip fees. The funding filter is not
+  simulated (no reliable free history), so live should be slightly
+  better-filtered than the backtest.
+- **Entry vetoes (`bot/filters.py`):** funding-rate crowding veto
+  (|funding| > 0.05%/8h blocks the crowded side; sources: Binance futures →
+  Bybit → OKX, skipped gracefully if all fail) and a BTC-trend veto for alt
+  entries. Vetoes apply to fresh entries only — never to exits.
+- **Trade tracking (`bot/tracker.py`):** open positions carry their plan in
+  the state file; stop/target touches are detected on closed 1h bars
+  (conservative: stop assumed first if both touch in one bar), alerted, and
+  appended to `state/ledger.json` with the realized R. Stop-outs trigger a
+  6-hour re-entry cooldown.
+- **Weekly scorecard (`bot/report.py`):** Monday cron summarizing the ledger
+  — measured win rate and total R, weekly and all-time.
+
 ## Verification Layer — Known Weaknesses (read this honestly)
 
 1. **Regime lag is irreducible.** EMA-alignment regimes confirm trends late
