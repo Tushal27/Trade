@@ -35,10 +35,15 @@ class Params:
     reward_r: float = 1.5            # target = stop_atr * reward_r ATRs away
     trail: bool = False              # trend trades: no fixed target, ride until the trend breaks
     pullback_entries: bool = False   # require an RSI pullback zone, not just "not extreme"
+    range_trades: bool = True        # allow mean-reversion entries in RANGE regimes
 
 
 BASELINE = Params()
+# Validated on 365d real history (2026-06): BTC +16.5R, ETH +8.5R, PF 1.17/1.08.
 CANDIDATE = Params(stop_atr=2.0, trail=True, pullback_entries=True)
+# Next hypothesis: range bucket was negative in all four backtest cells —
+# promote only if a compare run confirms it beats CANDIDATE.
+TREND_ONLY = Params(stop_atr=2.0, trail=True, pullback_entries=True, range_trades=False)
 
 STOP_ATR = BASELINE.stop_atr   # kept for backwards compatibility
 REWARD_R = BASELINE.reward_r
@@ -116,7 +121,9 @@ def decide(symbol: str, regime: Regime, ltf: Candles, prev_stance: str,
         else:
             d.reasons.append("4h downtrend but 1h entry conditions not aligned — waiting.")
     else:  # RANGE
-        if regime.volatility == EXPANSION:
+        if not p.range_trades:
+            d.reasons.append("Range regime and range trading is disabled — standing aside.")
+        elif regime.volatility == EXPANSION:
             # Fading extremes during a volatility blow-up is how accounts die.
             d.reasons.append("Ranging but volatility is expanding — mean reversion disabled, standing aside.")
         elif cur_rsi < 30 and price <= lower:

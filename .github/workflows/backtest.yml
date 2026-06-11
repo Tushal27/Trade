@@ -10,7 +10,7 @@ on:
       variant:
         description: "Which strategy version to test"
         type: choice
-        options: [compare, baseline, candidate]
+        options: [compare, baseline, candidate, trend_only]
         default: compare
 
 permissions:

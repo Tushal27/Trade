@@ -9,7 +9,7 @@ import unittest
 
 from bot.backtest import simulate
 from bot.filters import btc_trend_veto, funding_veto
-from bot.strategy import CANDIDATE, FLAT, LONG, SHORT, decide
+from bot.strategy import CANDIDATE, FLAT, LONG, SHORT, TREND_ONLY, decide
 from bot.tracker import (OUTCOME_STOP, OUTCOME_TARGET, check_hit, r_multiple)
 from tests.test_strategy import (make_candles, mirrored, ranging_series,
                                  trending_series)
@@ -108,6 +108,13 @@ class CandidateParamsTests(unittest.TestCase):
         if d.stance == LONG:  # entry fires only if RSI is in the pullback zone
             self.assertIsNone(d.target)
             self.assertIsNotNone(d.stop)
+
+    def test_trend_only_stays_flat_in_range_regime(self):
+        regime = detect_regime(make_candles(ranging_series()))
+        # Deep oversold at the band — would be a range entry for CANDIDATE.
+        ltf = make_candles(ranging_series(n=300, amp=0.04, seed=4), interval="1h")
+        d = decide("T", regime, ltf, FLAT, params=TREND_ONLY)
+        self.assertEqual(d.stance, FLAT)
 
     def test_trailing_position_check_hit_ignores_target(self):
         ltf = make_candles([100, 102, 105, 112, 111], interval="1h", spread=0.001)
