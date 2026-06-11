@@ -32,7 +32,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The bot is pure standard library — no pip install needed.
+      # Core bot is pure standard library; anthropic powers the optional Brain.
+      - name: Install Brain dependency
+        run: pip install --quiet anthropic
+
       - name: Run signal bot
         env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
@@ -40,6 +43,8 @@ jobs:
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BRAIN_MODEL: ${{ vars.BRAIN_MODEL }}
           FORCE_EMAIL: ${{ inputs.force_email }}
         run: python -m bot.main
 

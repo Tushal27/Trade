@@ -49,6 +49,19 @@ class TrackerTests(unittest.TestCase):
         self.assertIsNone(hit)
 
 
+class BrainTests(unittest.TestCase):
+    def test_brain_silent_when_unconfigured(self):
+        import os
+        from bot.brain import brain_configured, commentary
+        saved = os.environ.pop("ANTHROPIC_API_KEY", None)
+        try:
+            self.assertFalse(brain_configured())
+            self.assertIsNone(commentary("dummy report"))
+        finally:
+            if saved is not None:
+                os.environ["ANTHROPIC_API_KEY"] = saved
+
+
 class FilterTests(unittest.TestCase):
     def test_funding_veto_blocks_crowded_long(self):
         self.assertIsNotNone(funding_veto("BTCUSDT", "LONG", 0.001))
