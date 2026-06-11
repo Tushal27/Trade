@@ -1,1 +1,110 @@
-# Trade
+# Trade Signal Bot 📈
+
+A bot that watches **BTC and ETH**, decides when a trade looks good
+(**LONG / SHORT / EXIT**), and **emails you on Gmail** the moment the
+decision changes. You take the trade yourself — the bot never touches your
+money and needs **no exchange account or API keys**.
+
+Every signal email includes the entry price, a suggested **stop-loss** and
+**target**, and the reason for the call. See [ARCHITECTURE.md](ARCHITECTURE.md)
+for the full system design.
+
+> ⚠️ **Honest note:** no bot can promise a high win rate. This system aims for
+> profitable *risk/reward discipline* (≥1.5R targets, volatility-scaled stops,
+> staying out of dangerous chop) — not for being right every time. Never risk
+> money you can't afford to lose.
+
+---
+
+## Setup (one time, ~10 minutes)
+
+### Step 1 — Create a Gmail App Password
+
+The bot sends email through your own Gmail account using an **App Password**
+(a special 16-character password just for apps — your real password is never
+used or stored in code).
+
+1. Go to your Google Account → **Security**.
+2. Turn ON **2-Step Verification** (required for app passwords).
+3. Go to <https://myaccount.google.com/apppasswords>.
+4. Enter a name like `trade-bot` and click **Create**.
+5. Copy the 16-character password it shows you (e.g. `abcd efgh ijkl mnop`).
+
+### Step 2 — Add the secrets to GitHub
+
+1. Open this repository on GitHub → **Settings** → **Secrets and variables**
+   → **Actions** → **New repository secret**.
+2. Add these two secrets:
+
+| Secret name | Value |
+|---|---|
+| `GMAIL_ADDRESS` | your Gmail address (e.g. `you@gmail.com`) |
+| `GMAIL_APP_PASSWORD` | the 16-character app password from Step 1 (spaces don't matter) |
+
+Optional: add `RECIPIENT_EMAIL` if you want signals sent to a *different*
+address. By default the bot emails your own Gmail.
+
+### Step 3 — Test it
+
+1. Go to the **Actions** tab → **Trade Signal Bot** → **Run workflow**.
+2. Tick **"Send a status email even if no signal changed"** → **Run workflow**.
+3. Within a couple of minutes you should get a 📊 status email with the
+   current market read for BTC and ETH. If the run fails, open it — the log
+   will say exactly what's wrong (usually a mistyped app password).
+
+### Step 4 — Turn on the automatic schedule
+
+GitHub only runs scheduled jobs from the **main** branch. Once you're happy,
+merge this branch into `main` — after that the bot checks the market
+**every 15 minutes, 24/7**, and emails you only when a signal changes.
+No server, no PC left running, completely free.
+
+---
+
+## What the emails look like
+
+```
+Subject: 🚨 Trade Signal: LONG BTCUSDT @ 67,250.00
+
+BTCUSDT  —  FLAT -> LONG
+  Price:   67,250.00
+  Regime:  TREND_UP / NORMAL (confidence 84%)
+  Stop:    66,100.00
+  Target:  68,975.00  (~1.5R)
+  Why:     Trend entry: 4h uptrend + 1h EMA20>EMA50, price above EMA20,
+           RSI 56 not overbought.
+```
+
+**Suggested money rule:** risk no more than **1% of your capital** per
+signal. The distance between entry and stop tells you your position size —
+never the other way around.
+
+## How it decides (short version)
+
+1. **Regime first (4h chart):** is the market trending up, trending down, or
+   ranging? Is volatility compressed or exploding?
+2. **Signal second (1h chart):**
+   - In a trend → join the trend on a healthy pullback (never chases
+     overbought/oversold extremes).
+   - In a range → fade extremes at the Bollinger bands, but **only when
+     volatility is calm** — in violent chop it stands aside on purpose.
+3. **Email only on change:** HOLD → LONG, LONG → EXIT, etc. No spam.
+
+Full details, including known weaknesses: [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Run it locally (optional)
+
+Pure Python 3.11+, zero dependencies:
+
+```bash
+python -m bot.main --dry-run        # print decisions, send nothing
+python -m unittest discover -s tests   # run the offline test suite
+```
+
+To send real email locally, export `GMAIL_ADDRESS` and `GMAIL_APP_PASSWORD`
+first, then run `python -m bot.main`.
+
+---
+
+*Signals are generated automatically from public market data and are for
+information only — not financial advice.*
