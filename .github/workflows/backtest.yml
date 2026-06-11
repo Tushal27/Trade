@@ -7,6 +7,11 @@ on:
         description: "How many days of history to test"
         type: number
         default: 365
+      variant:
+        description: "Which strategy version to test"
+        type: choice
+        options: [compare, baseline, candidate]
+        default: compare
 
 permissions:
   contents: read
@@ -27,4 +32,4 @@ jobs:
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m bot.backtest --days "${{ inputs.days }}" --email
+        run: python -m bot.backtest --days "${{ inputs.days }}" --variant "${{ inputs.variant }}" --email
