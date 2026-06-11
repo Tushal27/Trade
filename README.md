@@ -79,6 +79,28 @@ Both channels get every signal once this is set up.
 If the Telegram secrets aren't set, the bot simply skips Telegram — email
 keeps working as before.
 
+### Optional — The Brain 🧠 (AI analyst commentary on every alert)
+
+Add Claude (the AI by Anthropic) as an analyst inside your bot: every signal
+alert gains a short plain-language market read — what the regime means, the
+key risks around this exact setup, and a discipline reminder.
+
+**Important design rule:** the Brain only *explains* — it can never change,
+veto, or create a trade decision. The backtested rules keep full authority
+(see ARCHITECTURE.md for why).
+
+1. Create an account at <https://platform.claude.com> and add a small amount
+   of credit (even $5 lasts a very long time).
+2. Create an **API key** (Settings → API keys) — it starts with `sk-ant-`.
+3. Add it as a repository secret named `ANTHROPIC_API_KEY` (same place as
+   your Gmail secrets).
+4. Done — the next alert will include a "🧠 Brain's read" section.
+
+**Cost honesty:** each commentary costs roughly $0.01 with the default
+`claude-opus-4-8` model, and you only pay when an alert actually fires — for
+this bot that's typically well under $1/month. No key = no Brain = bot works
+exactly as before.
+
 ### Step 4 — Turn on the automatic schedule
 
 GitHub only runs scheduled jobs from the **main** branch. Once you're happy,

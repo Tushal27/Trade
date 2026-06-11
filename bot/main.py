@@ -14,6 +14,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
+from .brain import commentary
 from .data import DataError, fetch_klines
 from .filters import btc_trend_veto, fetch_funding_rate, funding_veto
 from .notifier import NotifyError, send_email, send_telegram, telegram_configured
@@ -183,6 +184,13 @@ def run(dry_run: bool = False, force_email: bool = False) -> int:
     save_state(state)
 
     notify_due = bool(changes or closes)
+    body = report
+    if notify_due or force_email:
+        note = commentary(report)
+        if note:
+            body += "\n\n🧠 Brain's read (AI commentary — never overrides the rules):\n" + note
+    body += "\n\n" + DISCLAIMER
+
     if notify_due:
         if closes:
             first = closes[0]
@@ -195,10 +203,10 @@ def run(dry_run: bool = False, force_email: bool = False) -> int:
         extra = len(changes) + len(closes) - 1
         if extra > 0:
             subject += f" (+{extra} more)"
-        if not dispatch(subject, report + "\n\n" + DISCLAIMER):
+        if not dispatch(subject, body):
             return 1
     elif force_email:
-        if not dispatch(f"📊 Trade Bot Status — {now}", report + "\n\n" + DISCLAIMER):
+        if not dispatch(f"📊 Trade Bot Status — {now}", body):
             return 1
     else:
         print("\nNo signal change — no notification.")

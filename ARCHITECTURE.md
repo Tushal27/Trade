@@ -133,6 +133,24 @@ Added after the initial release; closes the loop between signals and truth.
 - **Weekly scorecard (`bot/report.py`):** Monday cron summarizing the ledger
   — measured win rate and total R, weekly and all-time.
 
+## Layer 6 — The Brain (`bot/brain.py`): AI analyst, never a decider
+
+An optional Claude-powered commentary layer appends a plain-language market
+read to each alert. Its authority is deliberately **zero**:
+
+- **Why it cannot decide trades:** an LLM's trade judgment is unvalidatable
+  within this system's evidence loop. Backtesting it is contaminated by
+  construction — a model trained on historical data has effectively *seen*
+  the answers (look-ahead bias) — and live, its hunches would be exactly the
+  kind of unmeasured discretion the backtest-validate-promote process exists
+  to eliminate.
+- **What it adds instead:** interpretation (what the regime/signal means),
+  situational risk notes, and discipline reminders — value that doesn't
+  require predictive validity.
+- **Failure mode:** any API error, refusal, or missing key degrades to a
+  normal alert without commentary. The Brain can never delay or block a
+  notification.
+
 ## Verification Layer — Known Weaknesses (read this honestly)
 
 1. **Regime lag is irreducible.** EMA-alignment regimes confirm trends late
