@@ -19,14 +19,15 @@ from .filters import btc_trend_veto, fetch_funding_rate, funding_veto
 from .notifier import NotifyError, send_email, send_telegram, telegram_configured
 from .regime import detect_regime
 from .state import get_stance, load_state, save_state, set_stance
-from .strategy import CANDIDATE, FLAT, LONG, SHORT, decide
+from .strategy import FLAT, LONG, SHORT, TREND_ONLY, decide
 from .tracker import (OUTCOME_SIGNAL_EXIT, OUTCOME_STOP, check_hit, close_trade,
                       cooldown_until_iso, in_cooldown)
 
 SYMBOLS = ["BTCUSDT", "ETHUSDT"]  # BTCUSDT must stay first: its regime gates alt entries
-# Promoted 2026-06 after the 365d A/B backtest: candidate beat baseline on
-# both symbols (BTC -68R -> +16.5R, ETH -39R -> +8.5R, max DD -72R -> -15R).
-LIVE_PARAMS = CANDIDATE
+# Promoted 2026-06 after the 730d three-way backtest: TREND_ONLY beat
+# CANDIDATE on both symbols in profit AND drawdown (BTC +43.6R/-13.4R DD,
+# ETH +15.5R/-35.5R DD; range trades were negative in all six cells).
+LIVE_PARAMS = TREND_ONLY
 HTF_INTERVAL = "4h"   # regime timeframe
 LTF_INTERVAL = "1h"   # signal timeframe
 

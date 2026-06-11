@@ -216,7 +216,7 @@ def format_report(sections: list[tuple[str, list[dict]]], days: int) -> str:
                 f"  Range trades:  {s['range_bucket']}",
                 "",
             ]
-    lines.append("Reading guide: win rates of 35-50% are NORMAL for this strategy class —")
+    lines.append("Reading guide: win rates of 20-50% are NORMAL for this strategy class —")
     lines.append("profitability comes from winners being bigger than losers (avg R > 0).")
     lines.append("Past performance does not guarantee future results.")
     return "\n".join(lines)
