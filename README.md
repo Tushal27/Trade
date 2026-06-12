@@ -1,6 +1,6 @@
 # Trade Signal Bot 📈
 
-A bot that watches **BTC and ETH**, decides when a trade looks good
+A bot that watches **Bitcoin (BTCUSDT)**, decides when a trade looks good
 (**LONG / SHORT / EXIT**), and **emails you on Gmail** the moment the
 decision changes. You take the trade yourself — the bot never touches your
 money and needs **no exchange account or API keys**.
@@ -49,7 +49,7 @@ address. By default the bot emails your own Gmail.
 1. Go to the **Actions** tab → **Trade Signal Bot** → **Run workflow**.
 2. Tick **"Send a status email even if no signal changed"** → **Run workflow**.
 3. Within a couple of minutes you should get a 📊 status email with the
-   current market read for BTC and ETH. If the run fails, open it — the log
+   current market read for BTC. If the run fails, open it — the log
    will say exactly what's wrong (usually a mistyped app password).
 
 ### Optional — Instant Telegram alerts on your phone (free)

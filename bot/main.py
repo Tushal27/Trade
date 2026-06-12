@@ -24,7 +24,10 @@ from .strategy import FLAT, LONG, SHORT, TREND_ONLY, decide
 from .tracker import (OUTCOME_SIGNAL_EXIT, OUTCOME_STOP, check_hit, close_trade,
                       cooldown_until_iso, in_cooldown)
 
-SYMBOLS = ["BTCUSDT", "ETHUSDT"]  # BTCUSDT must stay first: its regime gates alt entries
+# BTC only since 2026-06: the 1200-day backtest showed ETH trend edge decays
+# to zero over the long window (+0.8R, PF 1.00) while BTC holds (+57.9R,
+# PF 1.21). Re-add symbols only after a compare run proves an edge.
+SYMBOLS = ["BTCUSDT"]
 # Promoted 2026-06 after the 730d three-way backtest: TREND_ONLY beat
 # CANDIDATE on both symbols in profit AND drawdown (BTC +43.6R/-13.4R DD,
 # ETH +15.5R/-35.5R DD; range trades were negative in all six cells).
