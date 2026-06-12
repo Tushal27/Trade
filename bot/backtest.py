@@ -95,6 +95,7 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
     entry = stop = 0.0
     target: float | None = 0.0
     tag = "trend"
+    vol_tag = "NORMAL"
     cooldown_left = 0
 
     for i in range(WARMUP_1H, len(ltf)):
@@ -119,7 +120,7 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
                 hit = ("TARGET_HIT", target)
             if hit:
                 outcome, exit_price = hit
-                trades.append(_record(stance, entry, stop, exit_price, outcome, tag))
+                trades.append(_record(stance, entry, stop, exit_price, outcome, tag, vol_tag))
                 cooldown_left = _cooldown_for(params, outcome)
                 stance = FLAT
 
@@ -142,12 +143,13 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
 
         if stance in (LONG, SHORT) and d.stance != stance:
             # Signal exit (trend break / mean reached) at the bar close.
-            trades.append(_record(stance, entry, stop, close, "SIGNAL_EXIT", tag))
+            trades.append(_record(stance, entry, stop, close, "SIGNAL_EXIT", tag, vol_tag))
             cooldown_left = _cooldown_for(params, "SIGNAL_EXIT")
             stance = FLAT
         if stance == FLAT and d.stance in (LONG, SHORT) and d.stop is not None:
             stance, entry, stop, target = d.stance, close, d.stop, d.target
             tag = "trend" if regime.trend in (TREND_UP, TREND_DOWN) else "range"
+            vol_tag = regime.volatility
 
     return _stats(ltf.symbol, trades)
 
@@ -160,12 +162,13 @@ def _cooldown_for(params: Params, outcome: str) -> int:
     return COOLDOWN_BARS if params.trail else 0
 
 
-def _record(side: str, entry: float, stop: float, exit_price: float, outcome: str, tag: str) -> dict:
+def _record(side: str, entry: float, stop: float, exit_price: float, outcome: str,
+            tag: str, vol_tag: str = "NORMAL") -> dict:
     r = r_multiple(side, entry, stop, exit_price)
     risk = abs(entry - stop)
     fee_r = (FEE_ROUND_TRIP * entry / risk) if risk > 0 else 0.0
     return {"side": side, "entry": entry, "stop": stop, "exit": exit_price,
-            "outcome": outcome, "tag": tag, "r": round(r - fee_r, 3)}
+            "outcome": outcome, "tag": tag, "vol": vol_tag, "r": round(r - fee_r, 3)}
 
 
 def _stats(symbol: str, trades: list[dict]) -> dict:
@@ -177,8 +180,8 @@ def _stats(symbol: str, trades: list[dict]) -> dict:
         cumulative += r
         peak = max(peak, cumulative)
         max_dd = min(max_dd, cumulative - peak)
-    def bucket(tag: str) -> str:
-        sub = [t["r"] for t in trades if t["tag"] == tag]
+    def bucket(field: str, value: str) -> str:
+        sub = [t["r"] for t in trades if t.get(field) == value]
         if not sub:
             return "no trades"
         return f"{len(sub)} trades, {sum(sub):+.1f}R"
@@ -193,8 +196,11 @@ def _stats(symbol: str, trades: list[dict]) -> dict:
         "total_r": round(sum(rs), 2),
         "profit_factor": round(sum(wins) / abs(sum(losses)), 2) if losses and sum(losses) != 0 else float("inf") if wins else 0.0,
         "max_drawdown_r": round(max_dd, 2),
-        "trend_bucket": bucket("trend"),
-        "range_bucket": bucket("range"),
+        "trend_bucket": bucket("tag", "trend"),
+        "range_bucket": bucket("tag", "range"),
+        "long_bucket": bucket("side", "LONG"),
+        "short_bucket": bucket("side", "SHORT"),
+        "vol_buckets": {v: bucket("vol", v) for v in ("COMPRESSION", "NORMAL", "EXPANSION")},
         "trade_list": trades,
     }
 
@@ -214,6 +220,9 @@ def format_report(sections: list[tuple[str, list[dict]]], days: int) -> str:
                 f"  Max drawdown:  {s['max_drawdown_r']:.2f}R",
                 f"  Trend trades:  {s['trend_bucket']}",
                 f"  Range trades:  {s['range_bucket']}",
+                f"  Long trades:   {s['long_bucket']}",
+                f"  Short trades:  {s['short_bucket']}",
+                f"  By volatility: " + "  |  ".join(f"{k}: {v}" for k, v in s['vol_buckets'].items()),
                 "",
             ]
     lines.append("Reading guide: win rates of 20-50% are NORMAL for this strategy class —")
