@@ -5,7 +5,9 @@ four-layer architecture: **regime detection → strategy selection → risk
 framing → data pipeline resilience**, with a final verification/red-team
 section listing known weaknesses honestly.
 
-The system is **signal-only**: it never places orders. It watches BTC and ETH,
+The system is **signal-only**: it never places orders. It watches BTC
+(ETH was dropped after a 1200-day backtest showed its trend edge decays to
+profit factor 1.00 over the long window while BTC's holds at 1.21),
 decides LONG / SHORT / FLAT, and emails you only when the decision changes.
 
 ```mermaid
