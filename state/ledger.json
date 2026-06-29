@@ -1,0 +1,86 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 65278.0,
+    "stop": 66022.73864031355,
+    "target": null,
+    "exit_price": 66022.73864031355,
+    "outcome": "STOP_HIT",
+    "r_multiple": -1.0,
+    "opened_at": "2026-06-17T14:04:13+00:00",
+    "closed_at": "2026-06-17T17:26:28+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 64300.01,
+    "stop": 65398.2282462096,
+    "target": null,
+    "exit_price": 63530.01,
+    "outcome": "SIGNAL_EXIT",
+    "r_multiple": 0.7,
+    "opened_at": "2026-06-17T23:44:48+00:00",
+    "closed_at": "2026-06-20T01:31:41+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 63397.78,
+    "stop": 63976.798800370685,
+    "target": null,
+    "exit_price": 63976.798800370685,
+    "outcome": "STOP_HIT",
+    "r_multiple": -1.0,
+    "opened_at": "2026-06-20T14:22:49+00:00",
+    "closed_at": "2026-06-20T16:00:58+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 62470.7,
+    "stop": 63221.83055690354,
+    "target": null,
+    "exit_price": 63221.83055690354,
+    "outcome": "STOP_HIT",
+    "r_multiple": -1.0,
+    "opened_at": "2026-06-23T21:04:33+00:00",
+    "closed_at": "2026-06-24T12:24:10+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 60956.0,
+    "stop": 62157.10418078899,
+    "target": null,
+    "exit_price": 60305.73,
+    "outcome": "SIGNAL_EXIT",
+    "r_multiple": 0.54,
+    "opened_at": "2026-06-24T21:10:53+00:00",
+    "closed_at": "2026-06-27T04:36:54+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 60228.95,
+    "stop": 60904.29087979294,
+    "target": null,
+    "exit_price": 60342.0,
+    "outcome": "SIGNAL_EXIT",
+    "r_multiple": -0.17,
+    "opened_at": "2026-06-27T23:46:30+00:00",
+    "closed_at": "2026-06-28T12:10:17+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 60071.88,
+    "stop": 60653.55060218499,
+    "target": null,
+    "exit_price": 60057.0,
+    "outcome": "SIGNAL_EXIT",
+    "r_multiple": 0.03,
+    "opened_at": "2026-06-28T14:17:54+00:00",
+    "closed_at": "2026-06-29T10:11:02+00:00"
+  }
+]
