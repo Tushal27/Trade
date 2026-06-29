@@ -53,7 +53,8 @@ class BrainTests(unittest.TestCase):
     def test_brain_silent_when_unconfigured(self):
         import os
         from bot.brain import brain_configured, commentary
-        saved = {k: os.environ.pop(k, None) for k in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY")}
+        saved = {k: os.environ.pop(k, None) for k in
+                 ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENAI_BASE_URL", "OPENAI_API_KEY")}
         try:
             self.assertFalse(brain_configured())
             self.assertIsNone(commentary("dummy report"))
