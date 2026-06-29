@@ -36,6 +36,7 @@ class Params:
     trail: bool = False              # trend trades: no fixed target, ride until the trend breaks
     pullback_entries: bool = False   # require an RSI pullback zone, not just "not extreme"
     range_trades: bool = True        # allow mean-reversion entries in RANGE regimes
+    hold_until_regime_flip: bool = False  # hold trend trades until the 4h trend flips, not the 1h EMA50
 
 
 BASELINE = Params()
@@ -44,6 +45,10 @@ CANDIDATE = Params(stop_atr=2.0, trail=True, pullback_entries=True)
 # Next hypothesis: range bucket was negative in all four backtest cells —
 # promote only if a compare run confirms it beats CANDIDATE.
 TREND_ONLY = Params(stop_atr=2.0, trail=True, pullback_entries=True, range_trades=False)
+# Hypothesis from live results: the 1h-EMA50 exit bails on minor pullbacks and
+# leaves trend profit on the table. RIDE holds until the 4h trend flips.
+RIDE = Params(stop_atr=2.0, trail=True, pullback_entries=True, range_trades=False,
+              hold_until_regime_flip=True)
 
 STOP_ATR = BASELINE.stop_atr   # kept for backwards compatibility
 REWARD_R = BASELINE.reward_r
@@ -77,9 +82,10 @@ def decide(symbol: str, regime: Regime, ltf: Candles, prev_stance: str,
 
     # --- holding a position: check exit conditions first (looser than entries) ---
     if prev_stance == LONG:
-        if regime.trend == TREND_UP and price >= ema50:
+        if regime.trend == TREND_UP and (p.hold_until_regime_flip or price >= ema50):
             d.stance = LONG
-            d.reasons.append("Uptrend intact: price holding above 1h EMA50.")
+            d.reasons.append("Uptrend intact: holding the long." if p.hold_until_regime_flip
+                             else "Uptrend intact: price holding above 1h EMA50.")
             return d
         if regime.trend == RANGE and prev_held_mean_reversion_valid(price, mid, cur_rsi, LONG):
             d.stance = LONG
@@ -89,9 +95,10 @@ def decide(symbol: str, regime: Regime, ltf: Candles, prev_stance: str,
         # fall through to FLAT (or a fresh short below)
 
     if prev_stance == SHORT:
-        if regime.trend == TREND_DOWN and price <= ema50:
+        if regime.trend == TREND_DOWN and (p.hold_until_regime_flip or price <= ema50):
             d.stance = SHORT
-            d.reasons.append("Downtrend intact: price holding below 1h EMA50.")
+            d.reasons.append("Downtrend intact: holding the short." if p.hold_until_regime_flip
+                             else "Downtrend intact: price holding below 1h EMA50.")
             return d
         if regime.trend == RANGE and prev_held_mean_reversion_valid(price, mid, cur_rsi, SHORT):
             d.stance = SHORT

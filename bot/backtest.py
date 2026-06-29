@@ -27,7 +27,7 @@ import urllib.request
 from .data import Candles, DataError, _parse_and_validate  # reuse validation
 from .data import HOSTS
 from .regime import TREND_DOWN, TREND_UP, detect_regime
-from .strategy import BASELINE, CANDIDATE, FLAT, LONG, SHORT, TREND_ONLY, Params, decide
+from .strategy import BASELINE, CANDIDATE, FLAT, LONG, RIDE, SHORT, TREND_ONLY, Params, decide
 from .tracker import r_multiple
 
 FEE_ROUND_TRIP = 0.0016   # taker fees + slippage, as a fraction of price
@@ -231,7 +231,7 @@ def format_report(sections: list[tuple[str, list[dict]]], days: int) -> str:
     return "\n".join(lines)
 
 
-VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE, "trend_only": TREND_ONLY}
+VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE, "trend_only": TREND_ONLY, "ride": RIDE}
 
 
 def main() -> int:
