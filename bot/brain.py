@@ -6,10 +6,13 @@ hunches cannot be validated the way the rules were (a model that has read
 market history would ace any backtest from memory — look-ahead bias), so it
 is wired as an analyst, not a decider, preserving the evidence loop.
 
-Two interchangeable providers, used in this order of preference:
-  ANTHROPIC_API_KEY  -> Claude (premium quality, ~1 cent per commentary)
-  GEMINI_API_KEY     -> Google Gemini (free tier — costs nothing)
-With neither key present, alerts simply go out without commentary.
+Three interchangeable providers, used in this order of preference:
+  OPENAI_BASE_URL + OPENAI_API_KEY -> any OpenAI-compatible engine (your own
+                                      multi-model gateway); model OPENAI_MODEL
+                                      (default "auto")
+  ANTHROPIC_API_KEY                -> Claude (premium quality, ~1 cent each)
+  GEMINI_API_KEY                   -> Google Gemini (free tier — costs nothing)
+With none present, alerts simply go out without commentary.
 """
 
 from __future__ import annotations
@@ -45,6 +48,11 @@ Never say the trade "will" win or lose. Never suggest ignoring or adjusting the 
 stop, target, or decision."""
 
 
+def _openai_configured() -> bool:
+    return bool(os.environ.get("OPENAI_BASE_URL", "").strip()
+                and os.environ.get("OPENAI_API_KEY", "").strip())
+
+
 def _claude_configured() -> bool:
     return anthropic is not None and bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
 
@@ -54,7 +62,29 @@ def _gemini_configured() -> bool:
 
 
 def brain_configured() -> bool:
-    return _claude_configured() or _gemini_configured()
+    return _openai_configured() or _claude_configured() or _gemini_configured()
+
+
+def _openai_commentary(report: str) -> str | None:
+    base = os.environ["OPENAI_BASE_URL"].strip().rstrip("/")
+    key = os.environ["OPENAI_API_KEY"].strip()
+    model = os.environ.get("OPENAI_MODEL", "").strip() or "auto"
+    payload = json.dumps({
+        "model": model,
+        "max_tokens": 1024,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Today's signal report:\n\n{report}"},
+        ],
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base}/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        body = json.loads(resp.read())
+    return (body["choices"][0]["message"]["content"] or "").strip() or None
 
 
 def _claude_commentary(report: str) -> str | None:
@@ -93,6 +123,8 @@ def _gemini_commentary(report: str) -> str | None:
 def commentary(report: str) -> str | None:
     """Return the Brain's read on a signal report, or None (never raises)."""
     try:
+        if _openai_configured():
+            return _openai_commentary(report)
         if _claude_configured():
             return _claude_commentary(report)
         if _gemini_configured():

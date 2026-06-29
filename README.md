@@ -89,7 +89,16 @@ key risks around this exact setup, and a discipline reminder.
 veto, or create a trade decision. The backtested rules keep full authority
 (see ARCHITECTURE.md for why).
 
-Two providers — pick **one** (the bot uses whichever key it finds):
+Three providers — the bot uses whichever it finds (priority: your own
+engine → Claude → Gemini):
+
+**Option C — Your own OpenAI-compatible engine (e.g. a multi-model gateway):**
+1. Add two repository secrets: `OPENAI_BASE_URL` (e.g. `https://your-domain/v1`)
+   and `OPENAI_API_KEY`.
+2. Optional: a repository *variable* `OPENAI_MODEL` (defaults to `auto`).
+That's it — your engine writes the 🧠 Brain's read on every alert.
+
+Or pick one of the hosted options below:
 
 **Option A — Google Gemini (free, recommended to start):**
 1. Go to <https://aistudio.google.com> → sign in with your Google account →
