@@ -38,7 +38,7 @@ COOLDOWN_BARS = 6         # 1h bars without re-entry after a stop-out
 
 def fetch_klines_range(symbol: str, interval: str, start_ms: int, end_ms: int) -> Candles:
     """Paginated historical fetch (Binance caps each request at 1000 rows)."""
-    interval_ms = {"1h": 3_600_000, "4h": 14_400_000}[interval]
+    interval_ms = {"1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}[interval]
     rows: list = []
     cursor = start_ms
     while cursor < end_ms:
