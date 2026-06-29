@@ -20,7 +20,7 @@ from .filters import btc_trend_veto, fetch_funding_rate, funding_veto
 from .notifier import NotifyError, send_email, send_telegram, telegram_configured
 from .regime import detect_regime
 from .state import get_stance, load_state, save_state, set_stance
-from .strategy import FLAT, LONG, SHORT, TREND_ONLY, decide
+from .strategy import FLAT, LONG, RIDE, SHORT, decide
 from .tracker import (OUTCOME_SIGNAL_EXIT, OUTCOME_STOP, check_hit, close_trade,
                       cooldown_until_iso, in_cooldown)
 
@@ -28,10 +28,12 @@ from .tracker import (OUTCOME_SIGNAL_EXIT, OUTCOME_STOP, check_hit, close_trade,
 # to zero over the long window (+0.8R, PF 1.00) while BTC holds (+57.9R,
 # PF 1.21). Re-add symbols only after a compare run proves an edge.
 SYMBOLS = ["BTCUSDT"]
-# Promoted 2026-06 after the 730d three-way backtest: TREND_ONLY beat
-# CANDIDATE on both symbols in profit AND drawdown (BTC +43.6R/-13.4R DD,
-# ETH +15.5R/-35.5R DD; range trades were negative in all six cells).
-LIVE_PARAMS = TREND_ONLY
+# Promoted 2026-06: live trades exposed the 1h-EMA50 exit bailing early and
+# leaving trend profit behind. RIDE (hold until the 4h trend flips) then beat
+# TREND_ONLY on the 1200-day BTC backtest — PF 1.24 vs 1.15, avg +0.19R vs
+# +0.08R, same total with <half the trades (220 vs 497). Final structural
+# change from this dataset; further tuning waits on live-ledger evidence.
+LIVE_PARAMS = RIDE
 HTF_INTERVAL = "4h"   # regime timeframe
 LTF_INTERVAL = "1h"   # signal timeframe
 
