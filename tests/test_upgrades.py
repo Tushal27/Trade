@@ -64,6 +64,39 @@ class BrainTests(unittest.TestCase):
                     os.environ[k] = v
 
 
+class SizingTests(unittest.TestCase):
+    def test_stop_distance_always_shown(self):
+        import os
+        from bot.main import sizing_lines
+        saved = os.environ.pop("TRADE_CAPITAL", None)
+        try:
+            lines = sizing_lines(100.0, 96.0)  # 4% stop
+            self.assertTrue(any("4.00%" in ln for ln in lines))
+        finally:
+            if saved is not None:
+                os.environ["TRADE_CAPITAL"] = saved
+
+    def test_position_and_margin_math(self):
+        import os
+        from bot.main import sizing_lines
+        env = {"TRADE_CAPITAL": "100000", "RISK_PCT": "1", "LEVERAGE": "5",
+               "ACCOUNT_CURRENCY": "USDT"}
+        saved = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            # entry 100, stop 96.4 -> 3.6% stop; risk 1000 -> position ~27,778; margin /5 ~5,556
+            lines = "\n".join(sizing_lines(100.0, 96.4))
+            self.assertIn("1,000.00 USDT", lines)        # risk amount
+            self.assertIn("27,778 USDT", lines)          # position notional
+            self.assertIn("5,556 USDT", lines)           # margin at 5x
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+
 class FilterTests(unittest.TestCase):
     def test_funding_veto_blocks_crowded_long(self):
         self.assertIsNotNone(funding_veto("BTCUSDT", "LONG", 0.001))

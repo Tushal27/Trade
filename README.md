@@ -143,6 +143,22 @@ BTCUSDT  —  FLAT -> LONG
 signal. The distance between entry and stop tells you your position size —
 never the other way around.
 
+### Auto position-size & margin in every alert (optional)
+
+Set these repository **variables** (Settings → Secrets and variables →
+Actions → *Variables* tab) and every signal will show your exact position
+size and the margin to lock at your leverage — no manual math:
+
+| Variable | Example | Meaning |
+|---|---|---|
+| `TRADE_CAPITAL` | `100000` | Your account size (in the currency below) |
+| `RISK_PCT` | `1` | Risk per trade (default 1) |
+| `LEVERAGE` | `5` | Your exchange leverage dial (default 5) |
+| `ACCOUNT_CURRENCY` | `USDT` | Label shown in the alert (default USDT) |
+
+The bot sizes each position so hitting the stop loses exactly `RISK_PCT` of
+capital. Leave `TRADE_CAPITAL` unset and it just shows the stop distance %.
+
 ## Beyond entry signals
 
 **Trade tracking.** When a signal opens, the bot remembers its stop and
