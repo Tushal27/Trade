@@ -83,9 +83,44 @@ def format_decision_block(d, prev_stance: str) -> str:
             lines.append(f"  Target:  {d.target:,.2f}  (~{rr:.1f}R)")
         else:
             lines.append("  Target:  none — ride the trend; an EXIT alert will come when it breaks")
+        if d.stance in (LONG, SHORT):
+            lines.extend(sizing_lines(d.price, d.stop))
     for reason in d.reasons:
         lines.append(f"  Why:     {reason}")
     return "\n".join(lines)
+
+
+def sizing_lines(entry: float, stop: float) -> list[str]:
+    """Position-sizing math for the alert: risk → position → margin.
+
+    Always shows the stop distance. Adds full sizing (position + margin at your
+    leverage) when TRADE_CAPITAL is configured. Position size is set so that
+    hitting the stop loses exactly RISK_PCT of capital — the stop sets the size.
+    """
+    dist = abs(entry - stop) / entry if entry else 0.0
+    if dist <= 0:
+        return []
+    out = [f"  Stop dist: {dist * 100:.2f}%"]
+    cap = os.environ.get("TRADE_CAPITAL", "").strip()
+    if not cap:
+        out.append("  (set TRADE_CAPITAL to auto-show position size & margin)")
+        return out
+    try:
+        capital = float(cap)
+        risk_pct = float(os.environ.get("RISK_PCT", "1") or "1")
+        leverage = float(os.environ.get("LEVERAGE", "5") or "5")
+    except ValueError:
+        return out
+    ccy = os.environ.get("ACCOUNT_CURRENCY", "USDT").strip() or "USDT"
+    risk_amt = capital * risk_pct / 100.0
+    notional = risk_amt / dist
+    margin = notional / leverage if leverage > 0 else notional
+    qty = notional / entry
+    out.append(f"  Size ({risk_pct:g}% risk @ {leverage:g}x):")
+    out.append(f"    Risk:     {risk_amt:,.2f} {ccy}  (your max loss if stopped)")
+    out.append(f"    Position: {notional:,.0f} {ccy}  ({qty:.4f} units)")
+    out.append(f"    Margin:   {margin:,.0f} {ccy}  (locked at {leverage:g}x)")
+    return out
 
 
 def format_close_block(record: dict) -> str:

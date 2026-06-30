@@ -50,6 +50,10 @@ jobs:
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
           BRAIN_MODEL: ${{ vars.BRAIN_MODEL }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          TRADE_CAPITAL: ${{ vars.TRADE_CAPITAL }}
+          RISK_PCT: ${{ vars.RISK_PCT }}
+          LEVERAGE: ${{ vars.LEVERAGE }}
+          ACCOUNT_CURRENCY: ${{ vars.ACCOUNT_CURRENCY }}
           FORCE_EMAIL: ${{ inputs.force_email }}
         run: python -m bot.main
 
