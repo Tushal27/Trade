@@ -27,7 +27,8 @@ import urllib.request
 from .data import Candles, DataError, _parse_and_validate  # reuse validation
 from .data import HOSTS
 from .regime import TREND_DOWN, TREND_UP, detect_regime
-from .strategy import BASELINE, CANDIDATE, FLAT, LONG, RIDE, SHORT, TREND_ONLY, Params, decide
+from .strategy import (BASELINE, CANDIDATE, FLAT, LONG, RIDE, RIDE_BE, SHORT,
+                       TARGET_2R, TARGET_3R, TREND_ONLY, Params, decide)
 from .tracker import r_multiple
 
 FEE_ROUND_TRIP = 0.0016   # taker fees + slippage, as a fraction of price
@@ -94,6 +95,8 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
     stance = FLAT
     entry = stop = 0.0
     target: float | None = 0.0
+    stop0 = 0.0          # original stop — R is always measured against this
+    be_moved = False     # breakeven protection already applied?
     tag = "trend"
     vol_tag = "NORMAL"
     cooldown_left = 0
@@ -120,9 +123,19 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
                 hit = ("TARGET_HIT", target)
             if hit:
                 outcome, exit_price = hit
-                trades.append(_record(stance, entry, stop, exit_price, outcome, tag, vol_tag))
+                trades.append(_record(stance, entry, stop0, exit_price, outcome, tag, vol_tag))
                 cooldown_left = _cooldown_for(params, outcome)
                 stance = FLAT
+
+        # Breakeven protection: once this bar's extreme reaches +breakeven_at_r
+        # of initial risk, tighten the stop to entry — effective from the NEXT
+        # bar (conservative: no intra-bar rescue on the arming bar itself).
+        if stance in (LONG, SHORT) and params.breakeven_at_r and not be_moved:
+            arm = params.breakeven_at_r * abs(entry - stop0)
+            if (stance == LONG and high >= entry + arm) or \
+               (stance == SHORT and low <= entry - arm):
+                stop = entry
+                be_moved = True
 
         if cooldown_left > 0:
             cooldown_left -= 1
@@ -143,11 +156,13 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
 
         if stance in (LONG, SHORT) and d.stance != stance:
             # Signal exit (trend break / mean reached) at the bar close.
-            trades.append(_record(stance, entry, stop, close, "SIGNAL_EXIT", tag, vol_tag))
+            trades.append(_record(stance, entry, stop0, close, "SIGNAL_EXIT", tag, vol_tag))
             cooldown_left = _cooldown_for(params, "SIGNAL_EXIT")
             stance = FLAT
         if stance == FLAT and d.stance in (LONG, SHORT) and d.stop is not None:
             stance, entry, stop, target = d.stance, close, d.stop, d.target
+            stop0 = stop
+            be_moved = False
             tag = "trend" if regime.trend in (TREND_UP, TREND_DOWN) else "range"
             vol_tag = regime.volatility
 
@@ -156,10 +171,12 @@ def simulate(htf: Candles, ltf: Candles, btc_htf: Candles | None = None,
 
 def _cooldown_for(params: Params, outcome: str) -> int:
     """Baseline: cooldown after stop-outs only (matches the original live
-    behavior). Candidate: cool down after every close to kill re-entry churn."""
+    behavior). New-generation params (pullback entries): cool down after every
+    close to kill re-entry churn. Keyed on pullback_entries so the fixed-target
+    variants get identical cooldowns to RIDE — a fair exit-rule comparison."""
     if outcome == "STOP_HIT":
-        return COOLDOWN_BARS * 2 if params.trail else COOLDOWN_BARS
-    return COOLDOWN_BARS if params.trail else 0
+        return COOLDOWN_BARS * 2 if params.pullback_entries else COOLDOWN_BARS
+    return COOLDOWN_BARS if params.pullback_entries else 0
 
 
 def _record(side: str, entry: float, stop: float, exit_price: float, outcome: str,
@@ -231,7 +248,11 @@ def format_report(sections: list[tuple[str, list[dict]]], days: int) -> str:
     return "\n".join(lines)
 
 
-VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE, "trend_only": TREND_ONLY, "ride": RIDE}
+VARIANTS = {"baseline": BASELINE, "candidate": CANDIDATE, "trend_only": TREND_ONLY,
+            "ride": RIDE, "ride_be": RIDE_BE, "target_2r": TARGET_2R, "target_3r": TARGET_3R}
+# `compare` runs the active contenders; the retired baseline/candidate stay
+# available individually but no longer burn compare time.
+COMPARE_SET = ("trend_only", "ride", "ride_be", "target_2r", "target_3r")
 
 
 def main() -> int:
@@ -258,7 +279,8 @@ def main() -> int:
         if symbol == "BTCUSDT":
             btc_htf = htf
 
-    chosen = VARIANTS if args.variant == "compare" else {args.variant: VARIANTS[args.variant]}
+    chosen = ({k: VARIANTS[k] for k in COMPARE_SET} if args.variant == "compare"
+              else {args.variant: VARIANTS[args.variant]})
     sections = []
     for label, params in chosen.items():
         results = []
