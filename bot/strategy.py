@@ -37,6 +37,7 @@ class Params:
     pullback_entries: bool = False   # require an RSI pullback zone, not just "not extreme"
     range_trades: bool = True        # allow mean-reversion entries in RANGE regimes
     hold_until_regime_flip: bool = False  # hold trend trades until the 4h trend flips, not the 1h EMA50
+    breakeven_at_r: float | None = None   # move stop to entry once this many R in profit (sim/tracker level)
 
 
 BASELINE = Params()
@@ -49,6 +50,15 @@ TREND_ONLY = Params(stop_atr=2.0, trail=True, pullback_entries=True, range_trade
 # leaves trend profit on the table. RIDE holds until the 4h trend flips.
 RIDE = Params(stop_atr=2.0, trail=True, pullback_entries=True, range_trades=False,
               hold_until_regime_flip=True)
+# Live pain 2026-06-29: a RIDE trade ran ~+2R open profit, then round-tripped
+# through the original stop to -1R. Three profit-protection challengers, all
+# with RIDE's entries, to be judged by the 1200d backtest before any promotion:
+RIDE_BE = Params(stop_atr=2.0, trail=True, pullback_entries=True, range_trades=False,
+                 hold_until_regime_flip=True, breakeven_at_r=1.0)  # stop -> entry at +1R
+TARGET_2R = Params(stop_atr=2.0, reward_r=2.0, pullback_entries=True,
+                   range_trades=False, hold_until_regime_flip=True)  # fixed 1:2 take-profit
+TARGET_3R = Params(stop_atr=2.0, reward_r=3.0, pullback_entries=True,
+                   range_trades=False, hold_until_regime_flip=True)  # fixed 1:3 take-profit
 
 STOP_ATR = BASELINE.stop_atr   # kept for backwards compatibility
 REWARD_R = BASELINE.reward_r

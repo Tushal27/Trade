@@ -10,7 +10,7 @@ on:
       variant:
         description: "Which strategy version to test"
         type: choice
-        options: [compare, baseline, candidate, trend_only, ride]
+        options: [compare, baseline, candidate, trend_only, ride, ride_be, target_2r, target_3r]
         default: compare
 
 permissions:
@@ -19,7 +19,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -9,7 +9,8 @@ import unittest
 
 from bot.backtest import simulate
 from bot.filters import btc_trend_veto, funding_veto
-from bot.strategy import CANDIDATE, FLAT, LONG, SHORT, TREND_ONLY, decide
+from bot.strategy import (CANDIDATE, FLAT, LONG, RIDE_BE, SHORT, TARGET_2R,
+                          TREND_ONLY, decide)
 from bot.tracker import (OUTCOME_STOP, OUTCOME_TARGET, check_hit, r_multiple)
 from tests.test_strategy import (make_candles, mirrored, ranging_series,
                                  trending_series)
@@ -163,6 +164,25 @@ class CandidateParamsTests(unittest.TestCase):
         ltf = make_candles(ranging_series(n=300, amp=0.04, seed=4), interval="1h")
         d = decide("T", regime, ltf, FLAT, params=TREND_ONLY)
         self.assertEqual(d.stance, FLAT)
+
+    def test_fixed_target_variant_sets_2r_target(self):
+        regime = detect_regime(make_candles(trending_series(drift=0.004)))
+        ltf = make_candles(trending_series(n=300, drift=0.003, seed=11), interval="1h")
+        d = decide("T", regime, ltf, FLAT, params=TARGET_2R)
+        self.assertEqual(d.stance, LONG)
+        self.assertIsNotNone(d.target)
+        ratio = (d.target - d.price) / (d.price - d.stop)
+        self.assertAlmostEqual(ratio, 2.0, places=6)
+
+    def test_ride_be_simulates_and_never_loses_more_than_1r(self):
+        from bot.backtest import simulate
+        htf = make_candles(trending_series(n=400, drift=0.004))
+        ltf = make_candles(trending_series(n=600, drift=0.001, seed=5), interval="1h")
+        stats = simulate(htf, ltf, params=RIDE_BE)
+        self.assertEqual(stats["trades"], stats["wins"] + stats["losses"])
+        # Worst loss is bounded by -1R plus fee drag; breakeven never widens risk.
+        for t in stats["trade_list"]:
+            self.assertGreaterEqual(t["r"], -1.2)
 
     def test_trailing_position_check_hit_ignores_target(self):
         ltf = make_candles([100, 102, 105, 112, 111], interval="1h", spread=0.001)
