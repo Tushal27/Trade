@@ -406,5 +406,17 @@
     "r_multiple": -1.0,
     "opened_at": "2026-10-20T19:32:10+00:00",
     "closed_at": "2026-10-22T18:00:43+00:00"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "SHORT",
+    "entry": 80880.01,
+    "stop": 81633.97505181466,
+    "target": null,
+    "exit_price": 81633.97505181466,
+    "outcome": "STOP_HIT",
+    "r_multiple": -1.0,
+    "opened_at": "2026-10-24T05:57:04+00:00",
+    "closed_at": "2026-10-28T15:12:42+00:00"
   }
 ]
